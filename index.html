@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>ZeroLeak AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f5f5f7;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 12px;
+      background: #222;
+      color: white;
+      font-size: 14px;
+    }
+    #controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    select, button, input {
+      padding: 6px;
+      font-size: 14px;
+    }
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .msg {
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+    }
+    .user { color: #0b5cff; }
+    .assistant { color: #111; }
+    footer {
+      padding: 12px;
+      background: white;
+      border-top: 1px solid #ddd;
+      display: flex;
+      gap: 8px;
+    }
+    textarea {
+      flex: 1;
+      resize: none;
+      height: 60px;
+      padding: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>ブラウザ内LLMチャット（Transformers.js）</div>
+  <div id="controls">
+    <label>
+      モデル:
+      <select id="modelSelect">
+        <option value="onnx-community/Qwen2.5-0.5B-Instruct" selected>
+          Qwen2.5-0.5B-Instruct（デフォルト）
+        </option>
+        <option value="onnx-community/Qwen2.5-1.5B-Instruct">
+          Qwen2.5-1.5B-Instruct
+        </option>
+        <option value="onnx-community/Llama-3.2-1B-Instruct-ONNX">
+          Llama-3.2-1B-Instruct
+        </option>
+        <option value="HuggingFaceTB/SmolLM2-360M-Instruct">
+          SmolLM2-360M-Instruct
+        </option>
+        <option value="microsoft/Phi-3-mini-4k-instruct-onnx-web">
+          Phi-3-mini-4k-Instruct
+        </option>
+      </select>
+    </label>
+
+    <button id="loadBtn">モデルを読み込む</button>
+    <button id="clearBtn">会話クリア</button>
+
+    <label>
+      max tokens:
+      <input type="number" id="maxTokens" value="128" min="32" max="1024" />
+    </label>
+
+    <span id="status">未ロード</span>
+  </div>
+</header>
+
+<div id="chat"></div>
+
+<footer>
+  <textarea id="input" placeholder="メッセージを入力（Enterで送信 / Shift+Enterで改行）"></textarea>
+  <button id="sendBtn">送信</button>
+</footer>
+
+<script type="module">
+  import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
+
+  let generator = null;
+  let currentModel = null;
+
+  const chatEl = document.getElementById("chat");
+  const inputEl = document.getElementById("input");
+  const statusEl = document.getElementById("status");
+
+  let messages = [
+    { role: "system", content: "You are a helpful assistant." }
+  ];
+
+  function addMessage(role, content) {
+    const div = document.createElement("div");
+    div.className = "msg " + role;
+    div.textContent = (role === "user" ? "🧑: " : "🤖: ") + content;
+    chatEl.appendChild(div);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  async function loadModel() {
+    const modelId = document.getElementById("modelSelect").value;
+    statusEl.textContent = "読み込み中...";
+    generator = null;
+
+    try {
+      generator = await pipeline(
+        "text-generation",
+        modelId,
+        {
+          dtype: "q4",
+          device: "webgpu"
+        }
+      );
+      currentModel = modelId;
+      statusEl.textContent = "ロード完了";
+    } catch (e) {
+      console.warn("WebGPU失敗、CPUで再試行", e);
+      try {
+        generator = await pipeline(
+          "text-generation",
+          modelId
+        );
+        currentModel = modelId;
+        statusEl.textContent = "ロード完了（CPU）";
+      } catch (err) {
+        statusEl.textContent = "ロード失敗";
+        console.error(err);
+      }
+    }
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    if (!generator) {
+      alert("先にモデルを読み込んでください");
+      return;
+    }
+
+    addMessage("user", text);
+    messages.push({ role: "user", content: text });
+    inputEl.value = "";
+
+    statusEl.textContent = "生成中...";
+
+    const maxTokens = parseInt(document.getElementById("maxTokens").value);
+
+    try {
+      const output = await generator(messages, {
+        max_new_tokens: maxTokens
+      });
+
+      const reply = output[0].generated_text.at(-1).content;
+      addMessage("assistant", reply);
+      messages.push({ role: "assistant", content: reply });
+      statusEl.textContent = "完了";
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "生成エラー";
+    }
+  }
+
+  document.getElementById("loadBtn").onclick = loadModel;
+  document.getElementById("sendBtn").onclick = sendMessage;
+  document.getElementById("clearBtn").onclick = () => {
+    messages = [
+      { role: "system", content: "You are a helpful assistant." }
+    ];
+    chatEl.innerHTML = "";
+  };
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+</script>
+
+</body>
+</html>
