@@ -10,7 +10,7 @@
   
   <!-- Open Graph Protocol (OGP) -->
   <meta property="og:title" content="ZeroLeak AI - 100% Client-Side. 0% Data Leak." />
-  <meta property="og:description" content="ブラウザ内で完全動作するプライベートLLMチャット。データは一切外部送信されません。完全なプライバシー保護を実現。" />
+  <meta property="og:description" content="ブラウザ内で完全動作するプライベートLLMチャット。データは一切外部送信されません。完全なプ���イバシー保護を実現。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://github.com/MasayukiTanaka0412/ZeroLeakAI" />
   <meta property="og:site_name" content="ZeroLeak AI" />
@@ -95,6 +95,17 @@
       padding: 8px;
       font-size: 14px;
     }
+    #feedbackBtn {
+      background: #0b5cff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    #feedbackBtn:hover {
+      background: #0a4fd6;
+    }
   </style>
 </head>
 <body>
@@ -156,6 +167,7 @@
 <footer>
   <textarea id="input" placeholder="メッセージを入力（Enterで送信 / Shift+Enterで改行）"></textarea>
   <button id="sendBtn">送信</button>
+  <a href="https://forms.gle/uS8VJuSjWzAFWFMS8" target="_blank" id="feedbackBtn">フィードバック</a>
 </footer>
 
 <script type="module">
